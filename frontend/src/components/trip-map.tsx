@@ -11,12 +11,14 @@ import {
 } from "react-leaflet";
 
 // Function to create custom markers based on stop type
-const createCustomIcon = (type: string) => {
-  let color = "#c5a059"; // Default branded gold
+const createCustomIcon = (type: string | undefined | null) => {
+  const safeType = (type || "intermediate").toLowerCase();
+  let color = "#8b5cf6"; // Default intermediate color
   let innerHtml = "";
 
-  switch (type.toLowerCase()) {
+  switch (safeType) {
     case "pickup":
+    case "start":
       color = "#10b981"; // Green for start
       innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
       break;
@@ -35,7 +37,7 @@ const createCustomIcon = (type: string) => {
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h11a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v13a3 3 0 0 0 3 3h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2"></path><path d="m9 2 3 3"></path><path d="m12 2-3 3"></path></svg>';
       break;
     default:
-      color = "#8b5cf6"; // Purple for any other intermediate stops
+      color = "#e2c41e"; // Purple for any other intermediate stops
       innerHtml = '<div class="w-1.5 h-1.5 bg-white rounded-full"></div>';
       break;
   }
