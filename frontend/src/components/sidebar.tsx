@@ -1,7 +1,8 @@
-import { ChevronLeft, History, Truck } from "lucide-react";
+import { ChevronLeft, History, Navigation, Truck } from "lucide-react";
 import type { TripData } from "../types/trip";
 import { TripForm } from "./trip-form";
 import { TripResults } from "./trip-results";
+import { Button } from "./ui/button";
 
 interface SidebarProps {
   // biome-ignore lint/suspicious/noExplicitAny: History data from API
@@ -49,36 +50,36 @@ export function Sidebar({
         {/* Main Content Area */}
         <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
           {tripData ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <button
-                className="mb-2 -ml-2 flex items-center font-medium text-brand-primary text-sm hover:text-brand-secondary"
+                className="group flex items-center font-bold text-brand-primary text-xs uppercase tracking-widest transition-colors hover:text-brand-primary/80"
                 onClick={() => setTripData(null)}
                 type="button"
               >
-                <ChevronLeft className="mr-1 h-4 w-4" />
+                <ChevronLeft className="mr-1 h-4 w-4 transition-transform group-hover:-translate-x-1" />
                 Back to Planner
               </button>
-              <TripResults data={tripData} onShowLogs={onShowLogs} />
+              <TripResults data={tripData} />
             </div>
           ) : (
             <div className="space-y-8">
               <section>
-                <h2 className="mb-4 font-bold text-brand-primary text-lg">
+                <h2 className="mb-4 font-bold text-brand-primary text-xl tracking-tight">
                   Plan New Trip
                 </h2>
                 <TripForm onStart={onStartPlanning} onSuccess={onTripSuccess} />
               </section>
 
               {historyData?.trips?.length > 0 && (
-                <section className="border-stone-200 border-t pt-6 dark:border-stone-800">
-                  <div className="mb-4 flex items-center gap-2 text-stone-400">
+                <section className="border-stone-200 border-t pt-8 dark:border-stone-800">
+                  <div className="mb-6 flex items-center gap-2 text-stone-400">
                     <History className="h-4 w-4" />
-                    <h2 className="font-bold text-sm uppercase tracking-wider">
+                    <h2 className="font-bold text-xs uppercase tracking-widest">
                       Recent Trips
                     </h2>
                   </div>
                   {/* Scrollable Trips List */}
-                  <div className="custom-scrollbar max-h-[300px] space-y-3 overflow-y-auto pr-2">
+                  <div className="custom-scrollbar max-h-[400px] space-y-3 overflow-y-auto pr-2">
                     {historyData.trips.map(
                       (trip: {
                         id: string;
@@ -87,12 +88,12 @@ export function Sidebar({
                         created_at: string;
                       }) => (
                         <button
-                          className="group w-full rounded-xl border border-stone-200 bg-white/50 p-4 text-left transition-all hover:border-brand-primary hover:bg-white dark:border-stone-800 dark:bg-stone-900/50"
+                          className="group w-full rounded-2xl border border-stone-200 bg-white/50 p-4 text-left transition-all hover:border-brand-primary hover:bg-white hover:shadow-lg dark:border-stone-800 dark:bg-stone-900/50"
                           key={trip.id}
                           onClick={() => onSelectTrip(trip.id)}
                           type="button"
                         >
-                          <p className="mb-1 font-bold text-stone-400 text-xs transition-colors group-hover:text-brand-primary">
+                          <p className="mb-1 font-bold text-[10px] text-stone-400 uppercase tracking-wider transition-colors group-hover:text-brand-primary">
                             {new Date(trip.created_at).toLocaleDateString()}
                           </p>
                           <p className="truncate font-bold text-sm text-stone-700 group-hover:text-brand-primary dark:text-stone-300">
@@ -107,6 +108,20 @@ export function Sidebar({
             </div>
           )}
         </div>
+
+        {/* Footer Action */}
+        {tripData && (
+          <footer className="border-stone-200 border-t p-6 dark:border-stone-800">
+            <Button
+              className="h-14 w-full rounded-2xl bg-brand-primary font-bold text-lg text-white shadow-brand-primary/20 shadow-xl transition-all hover:scale-[1.02] hover:bg-brand-primary/90"
+              onClick={onShowLogs}
+              size="lg"
+            >
+              <Navigation className="mr-3 h-5 w-5" />
+              View Daily Log Sheets
+            </Button>
+          </footer>
+        )}
       </div>
 
       {/* Toggle Button */}

@@ -58,6 +58,9 @@ function App() {
           setTripData(data);
           if (data) {
             setActiveView("planner");
+          } else {
+            setIsPlanning(false);
+            setSelectedTripId(null);
           }
         }}
         tripData={tripData}
