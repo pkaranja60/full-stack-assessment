@@ -53,6 +53,7 @@ class TripStop(models.Model):
         ("pickup",  "Pickup"),
         ("fuel",    "Fuel Stop"),
         ("rest",    "Rest Stop"),
+        ("break",   "30-Min Break"),
         ("dropoff", "Dropoff"),
     ]
 

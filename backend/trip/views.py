@@ -1,4 +1,5 @@
 import logging
+import math
 
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
@@ -19,6 +20,84 @@ import io
 from django.http import HttpResponse, FileResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _interpolate_along_route(geometry: dict, fraction: float) -> dict | None:
+    """
+    Given a GeoJSON LineString geometry and a fraction (0.0–1.0),
+    return the interpolated {lat, lon} point along the polyline.
+
+    fraction=0.0 → start of route
+    fraction=1.0 → end of route
+    """
+    coords = geometry.get("coordinates", [])
+    if not coords or len(coords) < 2:
+        return None
+
+    fraction = max(0.0, min(1.0, fraction))
+
+    # Calculate total route length in degrees (rough but proportional)
+    segment_lengths = []
+    total_length = 0.0
+    for i in range(1, len(coords)):
+        dx = coords[i][0] - coords[i - 1][0]
+        dy = coords[i][1] - coords[i - 1][1]
+        seg_len = math.sqrt(dx * dx + dy * dy)
+        segment_lengths.append(seg_len)
+        total_length += seg_len
+
+    if total_length < 1e-10:
+        return {"lat": coords[0][1], "lon": coords[0][0]}
+
+    target_dist = fraction * total_length
+    cumulative = 0.0
+
+    for i, seg_len in enumerate(segment_lengths):
+        if cumulative + seg_len >= target_dist:
+            # Interpolate within this segment
+            remainder = target_dist - cumulative
+            t = remainder / seg_len if seg_len > 1e-10 else 0.0
+            lon = coords[i][0] + t * (coords[i + 1][0] - coords[i][0])
+            lat = coords[i][1] + t * (coords[i + 1][1] - coords[i][1])
+            return {"lat": lat, "lon": lon}
+        cumulative += seg_len
+
+    # Fallback: return last coordinate
+    return {"lat": coords[-1][1], "lon": coords[-1][0]}
+
+
+def _enrich_stop_coordinates(
+    stop: dict,
+    location_coords: dict,
+    geometry: dict,
+    total_route_miles: float,
+) -> dict:
+    """
+    Enrich a stop dict with coordinates.
+
+    For start/pickup/dropoff: use exact city coordinate match.
+    For rest/fuel/break: use route geometry interpolation based on
+    cumulative_miles — these are intermediate road positions, NOT cities.
+    """
+    stop_copy = dict(stop)
+    stop_type = stop.get("stop_type", "")
+    coords = None
+
+    if stop_type in ("start", "pickup", "dropoff"):
+        # Known locations — use geocoded city coordinates
+        stop_loc = stop.get("location", "")
+        coords = location_coords.get(stop_loc)
+    else:
+        # Intermediate stops (rest, fuel, break) — interpolate along route
+        if total_route_miles > 0:
+            cum_miles = stop.get("cumulative_miles", 0.0)
+            fraction = cum_miles / total_route_miles
+            coords = _interpolate_along_route(geometry, fraction)
+
+    if coords:
+        stop_copy["coordinates"] = [coords["lon"], coords["lat"]]
+
+    return stop_copy
 
 
 def _save_trip(data, route_info, trip_plan) -> Trip:
@@ -57,38 +136,22 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
         data["pickup_location"]:  route_info["pickup_coords"],
         data["dropoff_location"]: route_info["dropoff_coords"],
     }
+    total_route_miles = route_info["total_distance_miles"]
+    geometry = route_info["geometry"]
 
     stop_objs = []
     for order, stop in enumerate(trip_plan["stops"]):
-        stop_loc = stop.get("location", "")
-        stop_loc_clean = stop_loc.strip().lower()
-        
-        # 1. Try fuzzy match first (matches "Fuel stop near Chicago" to "Chicago")
-        coords = None
-        for known_loc, known_coords in location_coords.items():
-            known_loc_clean = known_loc.strip().lower()
-            if known_loc_clean in stop_loc_clean or stop_loc_clean in known_loc_clean:
-                coords = known_coords
-                break
-        
-        # 2. If still no coordinates, geocode this new location on the fly
-        if not coords and stop_loc:
-            try:
-                from .services.route_service import geocode
-                import time
-                time.sleep(1.0) # Respect rate limits
-                geo = geocode(stop_loc)
-                coords = {"lat": geo["lat"], "lon": geo["lon"]}
-                location_coords[stop_loc] = coords # Cache it for the rest of this loop
-            except Exception:
-                logger.warning("Failed to geocode intermediate stop: %s", stop_loc)
-        
+        enriched = _enrich_stop_coordinates(stop, location_coords, geometry, total_route_miles)
+        coord_pair = enriched.get("coordinates")
+        lat = coord_pair[1] if coord_pair else None
+        lon = coord_pair[0] if coord_pair else None
+
         stop_objs.append(TripStop(
             trip           = trip,
             stop_type      = stop["stop_type"],
-            location       = stop_loc,
-            lat            = coords.get("lat") if coords else None,
-            lon            = coords.get("lon") if coords else None,
+            location       = stop.get("location", ""),
+            lat            = lat,
+            lon            = lon,
             hour_absolute  = stop["hour_absolute"],
             time_label     = stop["time_label"],
             duration_hours = stop.get("duration_hours", 0.0),
@@ -226,35 +289,11 @@ def plan_trip_view(request: Request) -> Response:
         data["pickup_location"]:  route_info["pickup_coords"],
         data["dropoff_location"]: route_info["dropoff_coords"],
     }
-    enriched_stops = []
-    for stop in trip_plan["stops"]:
-        stop_copy = dict(stop)
-        stop_loc = stop.get("location", "")
-        stop_loc_clean = stop_loc.strip().lower()
-        
-        # 1. Try fuzzy match first
-        coords = None
-        for known_loc, known_coords in location_coords.items():
-            known_loc_clean = known_loc.strip().lower()
-            if known_loc_clean in stop_loc_clean or stop_loc_clean in known_loc_clean:
-                coords = known_coords
-                break
-        
-        # 2. If still no coordinates, geocode it
-        if not coords and stop_loc:
-            try:
-                from .services.route_service import geocode
-                import time
-                time.sleep(1.0)
-                geo = geocode(stop_loc)
-                coords = {"lat": geo["lat"], "lon": geo["lon"]}
-                location_coords[stop_loc] = coords
-            except Exception:
-                pass
-        
-        if coords:
-            stop_copy["coordinates"] = [coords["lon"], coords["lat"]]
-        enriched_stops.append(stop_copy)
+    total_route_miles = route_info["total_distance_miles"]
+    enriched_stops = [
+        _enrich_stop_coordinates(stop, location_coords, route_info["geometry"], total_route_miles)
+        for stop in trip_plan["stops"]
+    ]
 
     enriched_legs = []
     if len(legs) >= 1:
