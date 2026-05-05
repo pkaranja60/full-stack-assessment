@@ -390,14 +390,14 @@ def plan_trip(
     # Stops list (for map display)
     stops = [
         {
-            "type":          "start",
+            "stop_type":     "start",
             "location":      current_location,
             "hour_absolute": TRIP_START_HOUR,
             "time_label":    f"Day 1, {_hours_to_hhmm(TRIP_START_HOUR)}",
             "description":   "Trip start / pre-trip inspection",
         },
         {
-            "type":          "pickup",
+            "stop_type":     "pickup",
             "location":      pickup_location,
             "hour_absolute": pickup_start,
             "time_label":    f"Day {_day_number(pickup_start)}, {_hours_to_hhmm(pickup_start % 24)}",
@@ -405,7 +405,7 @@ def plan_trip(
             "description":   "Pickup (1 hr on-duty)",
         },
         {
-            "type":          "dropoff",
+            "stop_type":     "dropoff",
             "location":      dropoff_location,
             "hour_absolute": dropoff_start,
             "time_label":    f"Day {_day_number(dropoff_start)}, {_hours_to_hhmm(dropoff_start % 24)}",
@@ -418,7 +418,7 @@ def plan_trip(
     for seg in segments:
         if seg.description == "Fuel stop":
             stops.append({
-                "type":          "fuel",
+                "stop_type":     "fuel",
                 "location":      seg.location,
                 "hour_absolute": seg.start,
                 "time_label":    f"Day {_day_number(seg.start)}, {_hours_to_hhmm(seg.start % 24)}",
@@ -430,7 +430,7 @@ def plan_trip(
     for seg in segments:
         if seg.status == "off_duty" and seg.duration >= MIN_REST_HOURS - 0.01:
             stops.append({
-                "type":          "rest",
+                "stop_type":     "rest",
                 "location":      seg.location,
                 "hour_absolute": seg.start,
                 "time_label":    f"Day {_day_number(seg.start)}, {_hours_to_hhmm(seg.start % 24)}",

@@ -56,13 +56,22 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
 
     stop_objs = []
     for order, stop in enumerate(trip_plan["stops"]):
-        coords = location_coords.get(stop.get("location", ""), {})
+        stop_loc = stop.get("location", "")
+        
+        # Fuzzy match for coordinates
+        coords = location_coords.get(stop_loc)
+        if not coords:
+            for known_loc, known_coords in location_coords.items():
+                if known_loc in stop_loc:
+                    coords = known_coords
+                    break
+        
         stop_objs.append(TripStop(
             trip           = trip,
-            stop_type      = stop["type"],
-            location       = stop.get("location", ""),
-            lat            = coords.get("lat"),
-            lon            = coords.get("lon"),
+            stop_type      = stop["stop_type"],
+            location       = stop_loc,
+            lat            = coords.get("lat") if coords else None,
+            lon            = coords.get("lon") if coords else None,
             hour_absolute  = stop["hour_absolute"],
             time_label     = stop["time_label"],
             duration_hours = stop.get("duration_hours", 0.0),
