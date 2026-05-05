@@ -15,6 +15,10 @@ interface LogSheetProps {
     segments: LogSegment[];
     totals: Record<string, number>;
     label: string;
+    recap?: {
+      cycle_hours_after: number;
+      cycle_hours_remaining: number;
+    };
   };
 }
 
@@ -196,6 +200,27 @@ export function LogSheet({ log }: LogSheetProps) {
             ))}
         </div>
       </div>
+
+      {log.recap && (
+        <div className="mt-4 grid grid-cols-2 gap-4 border-stone-100 border-t pt-4 dark:border-stone-800">
+          <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-900/50">
+            <p className="font-bold text-[10px] text-stone-400 uppercase">
+              Cycle Used
+            </p>
+            <p className="font-bold font-mono text-lg text-stone-700 dark:text-stone-300">
+              {log.recap.cycle_hours_after}h
+            </p>
+          </div>
+          <div className="rounded-lg bg-stone-50 p-3 dark:bg-stone-900/50">
+            <p className="font-bold text-[10px] text-stone-400 uppercase">
+              Cycle Remaining
+            </p>
+            <p className="font-bold font-mono text-brand-primary text-lg">
+              {log.recap.cycle_hours_remaining}h
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
