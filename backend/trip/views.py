@@ -61,14 +61,27 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
     stop_objs = []
     for order, stop in enumerate(trip_plan["stops"]):
         stop_loc = stop.get("location", "")
+        stop_loc_clean = stop_loc.strip().lower()
         
-        # Fuzzy match for coordinates
-        coords = location_coords.get(stop_loc)
-        if not coords:
-            for known_loc, known_coords in location_coords.items():
-                if known_loc in stop_loc:
-                    coords = known_coords
-                    break
+        # 1. Try fuzzy match first (matches "Fuel stop near Chicago" to "Chicago")
+        coords = None
+        for known_loc, known_coords in location_coords.items():
+            known_loc_clean = known_loc.strip().lower()
+            if known_loc_clean in stop_loc_clean or stop_loc_clean in known_loc_clean:
+                coords = known_coords
+                break
+        
+        # 2. If still no coordinates, geocode this new location on the fly
+        if not coords and stop_loc:
+            try:
+                from .services.route_service import geocode
+                import time
+                time.sleep(1.0) # Respect rate limits
+                geo = geocode(stop_loc)
+                coords = {"lat": geo["lat"], "lon": geo["lon"]}
+                location_coords[stop_loc] = coords # Cache it for the rest of this loop
+            except Exception:
+                logger.warning("Failed to geocode intermediate stop: %s", stop_loc)
         
         stop_objs.append(TripStop(
             trip           = trip,
@@ -217,14 +230,27 @@ def plan_trip_view(request: Request) -> Response:
     for stop in trip_plan["stops"]:
         stop_copy = dict(stop)
         stop_loc = stop.get("location", "")
+        stop_loc_clean = stop_loc.strip().lower()
         
-        # Try exact match first, then fuzzy match for "near X" locations
-        coords = location_coords.get(stop_loc)
-        if not coords:
-            for known_loc, known_coords in location_coords.items():
-                if known_loc in stop_loc:
-                    coords = known_coords
-                    break
+        # 1. Try fuzzy match first
+        coords = None
+        for known_loc, known_coords in location_coords.items():
+            known_loc_clean = known_loc.strip().lower()
+            if known_loc_clean in stop_loc_clean or stop_loc_clean in known_loc_clean:
+                coords = known_coords
+                break
+        
+        # 2. If still no coordinates, geocode it
+        if not coords and stop_loc:
+            try:
+                from .services.route_service import geocode
+                import time
+                time.sleep(1.0)
+                geo = geocode(stop_loc)
+                coords = {"lat": geo["lat"], "lon": geo["lon"]}
+                location_coords[stop_loc] = coords
+            except Exception:
+                pass
         
         if coords:
             stop_copy["coordinates"] = [coords["lon"], coords["lat"]]
