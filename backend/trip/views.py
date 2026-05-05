@@ -200,7 +200,16 @@ def plan_trip_view(request: Request) -> Response:
     enriched_stops = []
     for stop in trip_plan["stops"]:
         stop_copy = dict(stop)
-        coords = location_coords.get(stop.get("location", ""), {})
+        stop_loc = stop.get("location", "")
+        
+        # Try exact match first, then fuzzy match for "near X" locations
+        coords = location_coords.get(stop_loc)
+        if not coords:
+            for known_loc, known_coords in location_coords.items():
+                if known_loc in stop_loc:
+                    coords = known_coords
+                    break
+        
         if coords:
             stop_copy["coordinates"] = [coords["lon"], coords["lat"]]
         enriched_stops.append(stop_copy)
