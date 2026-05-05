@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import serializers
 from .models import Trip, TripStop, TripSegment, DailyLog, DailyLogSegment
 
@@ -53,16 +54,41 @@ class DailyLogSegmentSerializer(serializers.ModelSerializer):
         fields = [
             "status", "start_hour", "end_hour", "duration",
             "description", "location", "start_time", "end_time",
+            "miles",
         ]
 
 
 class DailyLogSerializer(serializers.ModelSerializer):
     segments = DailyLogSegmentSerializer(many=True, read_only=True)
     totals   = serializers.SerializerMethodField()
+    recap    = serializers.SerializerMethodField()
+    daily_miles_driven     = serializers.SerializerMethodField()
+    cumulative_total_miles = serializers.SerializerMethodField()
 
     class Meta:
         model  = DailyLog
-        fields = ["day", "label", "segments", "totals"]
+        fields = ["day", "label", "segments", "totals", "recap",
+                  "daily_miles_driven", "cumulative_total_miles"]
+
+    def get_daily_miles_driven(self, obj):
+        return round(sum(s.miles for s in obj.segments.all() if s.status == "driving"), 1)
+
+    def get_cumulative_total_miles(self, obj):
+        # Sum all driving miles from day 1 through this day
+        from .models import DailyLogSegment
+        return round(
+            DailyLogSegment.objects.filter(
+                daily_log__trip=obj.trip,
+                daily_log__day__lte=obj.day,
+                status="driving",
+            ).aggregate(total=models.Sum("miles"))["total"] or 0.0, 1
+        )
+
+    def get_recap(self, obj):
+        return {
+            "cycle_hours_after": obj.cycle_hours_after,
+            "cycle_hours_remaining": obj.cycle_hours_remaining,
+        }
 
     def get_totals(self, obj):
         return {
@@ -76,6 +102,7 @@ class DailyLogSerializer(serializers.ModelSerializer):
 class TripSerializer(serializers.ModelSerializer):
     """Full trip detail — used by GET /api/trip/<id>/"""
 
+    trip_id    = serializers.CharField(source="id", read_only=True)
     stops      = TripStopSerializer(many=True, read_only=True)
     segments   = TripSegmentSerializer(many=True, read_only=True)
     daily_logs = DailyLogSerializer(many=True, read_only=True)
@@ -86,7 +113,7 @@ class TripSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Trip
         fields = [
-            "id", "created_at",
+            "id", "trip_id", "created_at",
             "inputs", "route", "summary",
             "daily_logs", "stops", "segments",
         ]

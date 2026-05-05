@@ -14,6 +14,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.100.9
         version: 5.100.9(react@19.2.5)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -32,6 +35,9 @@ importers:
       react-router-dom:
         specifier: ^7.14.2
         version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      tailwind-merge:
+        specifier: ^3.5.0
+        version: 3.5.0
       tailwindcss:
         specifier: ^4.2.4
         version: 4.2.4
@@ -695,6 +701,10 @@ packages:
   citty@0.2.2:
     resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
 
+  clsx@2.1.1:
+    resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
+    engines: {node: '>=6'}
+
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
     engines: {node: '>=20'}
@@ -1222,6 +1232,9 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  tailwind-merge@3.5.0:
+    resolution: {integrity: sha512-I8K9wewnVDkL1NTGoqWmVEIlUcB9gFriAEkXkfCjX5ib8ezGxtR3xD7iZIxrfArjEsH7F1CHD4RFUtxefdqV/A==}
 
   tailwindcss@4.2.4:
     resolution: {integrity: sha512-HhKppgO81FQof5m6TEnuBWCZGgfRAWbaeOaGT00KOy/Pf/j6oUihdvBpA7ltCeAvZpFhW3j0PTclkxsd4IXYDA==}
@@ -1925,6 +1938,8 @@ snapshots:
 
   citty@0.2.2: {}
 
+  clsx@2.1.1: {}
+
   commander@14.0.3: {}
 
   convert-source-map@2.0.0: {}
@@ -2381,6 +2396,8 @@ snapshots:
   sisteransi@1.0.5: {}
 
   source-map-js@1.2.1: {}
+
+  tailwind-merge@3.5.0: {}
 
   tailwindcss@4.2.4: {}
 

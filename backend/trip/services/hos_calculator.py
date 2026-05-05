@@ -9,6 +9,7 @@ Rules applied (FMCSA 49 CFR Part 395):
   - 70-hour / 8-day cycle limit
   - Fuel stop every 1,000 miles (30 min on-duty)
   - 1-hour on-duty (not driving) at pickup and dropoff
+  - Driving window: 6 AM – 8 PM (nighttime rest enforced)
 """
 
 import math
@@ -29,7 +30,11 @@ FUEL_STOP_DURATION   = 0.5     # 30 minutes
 PICKUP_DURATION      = 1.0     # 1 hour on-duty
 DROPOFF_DURATION     = 1.0     # 1 hour on-duty
 PRE_TRIP_DURATION    = 0.5     # 30-min pre-trip inspection
-TRIP_START_HOUR      = 8.0     # 08:00 on Day 1 (hour 8 since midnight)
+TRIP_START_HOUR      = 6.0     # 06:00 on Day 1 (hour 6 since midnight)
+
+# Driving window (hardcoded for now — may become configurable later)
+DRIVE_WINDOW_START   = 6.0     # 6 AM
+DRIVE_WINDOW_END     = 20.0    # 8 PM
 
 
 # ── Data structures ──────────────────────────────────────────────────────────
@@ -43,6 +48,8 @@ class Segment:
     description: str
     location: str = ""
     miles: float = 0.0
+    cycle_after: float = 0.0
+    cumulative_miles: float = 0.0   # total miles driven since trip start at segment end
 
     @property
     def duration(self) -> float:
@@ -59,6 +66,7 @@ class ShiftState:
     cum_driving: float = 0.0       # cumulative driving since last 30-min break
     cycle_used: float = 0.0        # cycle hours used (rolling 8-day)
     miles_since_fuel: float = 0.0
+    total_miles: float = 0.0       # cumulative miles driven since trip start
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,6 +85,63 @@ def _day_number(t: float) -> int:
     return int(t // 24) + 1
 
 
+def _time_of_day(t: float) -> float:
+    """Get the hour-of-day (0–24) from absolute time."""
+    return t % 24
+
+
+def _next_drivable_time(t: float) -> float:
+    """
+    Given an absolute time, return the next time that falls within the
+    driving window [DRIVE_WINDOW_START, DRIVE_WINDOW_END].
+    If already within the window, returns t unchanged.
+    """
+    tod = _time_of_day(t)
+    if DRIVE_WINDOW_START <= tod < DRIVE_WINDOW_END:
+        return t  # Already in the driving window
+    # Outside the window — advance to next DRIVE_WINDOW_START
+    if tod >= DRIVE_WINDOW_END:
+        # Past evening cutoff — advance to next morning
+        return t + (24 - tod) + DRIVE_WINDOW_START
+    else:
+        # Before morning start (e.g. 3 AM) — advance to this morning
+        return t + (DRIVE_WINDOW_START - tod)
+
+
+def _hours_until_window_end(t: float) -> float:
+    """How many hours remain in the current driving window from time t."""
+    tod = _time_of_day(t)
+    if DRIVE_WINDOW_START <= tod < DRIVE_WINDOW_END:
+        return DRIVE_WINDOW_END - tod
+    return 0.0
+
+
+def _insert_nighttime_rest(state: ShiftState, segments: List["Segment"], location: str) -> None:
+    """
+    If the current time is outside the driving window, insert an off-duty
+    segment until the next drivable time and reset the shift.
+    """
+    next_t = _next_drivable_time(state.t)
+    if next_t > state.t + 0.01:
+        rest_duration = next_t - state.t
+        segments.append(Segment(
+            status="off_duty",
+            start=state.t,
+            end=next_t,
+            description="Nighttime rest (off-duty until 6 AM)",
+            location=location,
+            cycle_after=state.cycle_used,
+            cumulative_miles=state.total_miles,
+        ))
+        state.t = next_t
+        # If rest was >= 10h, it counts as a full rest period — reset shift
+        if rest_duration >= MIN_REST_HOURS - 0.01:
+            state.shift_start = state.t
+            state.shift_driving = 0.0
+            state.shift_on_duty = 0.0
+            state.cum_driving = 0.0
+
+
 # ── Core driving engine ──────────────────────────────────────────────────────
 
 def _drive_miles(
@@ -89,7 +154,7 @@ def _drive_miles(
 ) -> None:
     """
     Drive `miles_to_drive` miles, emitting Segment objects and mutating `state`.
-    Handles: 30-min breaks, fuel stops, shift limits, 10-hr rests.
+    Handles: nighttime rest, 30-min breaks, fuel stops, shift limits, 10-hr rests.
     """
     miles_left = miles_to_drive
     iters = 0
@@ -99,23 +164,48 @@ def _drive_miles(
         if iters > max_iters:
             raise RuntimeError("HOS planner exceeded iteration limit — check inputs")
 
+        # ── Enforce driving window ────────────────────────────────────────────
+        rest_loc = f"Mile {state.total_miles:.0f} ({from_loc} → {to_loc})"
+        _insert_nighttime_rest(state, segments, rest_loc)
+
         # ── How long can we keep driving before hitting a limit? ──────────────
         window_remaining  = (state.shift_start + MAX_WINDOW_HOURS) - state.t
         drive_remaining   = MAX_DRIVING_PER_SHIFT - state.shift_driving
         cycle_remaining   = CYCLE_LIMIT - state.cycle_used
-        break_remaining   = BREAK_AFTER_HOURS - state.cum_driving  # until next mandatory break
+        break_remaining   = BREAK_AFTER_HOURS - state.cum_driving
+        daylight_remaining = _hours_until_window_end(state.t)
 
-        available = min(window_remaining, drive_remaining, cycle_remaining)
+        available = min(window_remaining, drive_remaining, cycle_remaining, daylight_remaining)
 
         if available <= 0.01:
-            # ── Must rest ────────────────────────────────────────────────────
-            rest_loc = from_loc if miles_left >= miles_to_drive else to_loc
+            if cycle_remaining <= 0.1:
+                # ── 34-hour restart ───────────────────────────────────────────
+                segments.append(Segment(
+                    status="off_duty",
+                    start=state.t,
+                    end=state.t + 34.0,
+                    description="34-hour restart (Cycle Reset)",
+                    location=rest_loc,
+                    cycle_after=0.0,
+                    cumulative_miles=state.total_miles,
+                ))
+                state.t += 34.0
+                state.shift_start   = state.t
+                state.shift_driving = 0.0
+                state.shift_on_duty = 0.0
+                state.cum_driving   = 0.0
+                state.cycle_used    = 0.0
+                continue
+
+            # ── Must rest (shift limit or window exhausted) ───────────────────
             segments.append(Segment(
-                status="off_duty",
+                status="sleeper_berth",
                 start=state.t,
                 end=state.t + MIN_REST_HOURS,
                 description="Required 10-hour rest period",
                 location=rest_loc,
+                cycle_after=state.cycle_used,
+                cumulative_miles=state.total_miles,
             ))
             state.t += MIN_REST_HOURS
             state.shift_start   = state.t
@@ -126,21 +216,20 @@ def _drive_miles(
 
         if state.cum_driving >= BREAK_AFTER_HOURS - 0.01:
             # ── 30-minute mandatory break ────────────────────────────────────
-            rest_loc = from_loc if miles_left >= miles_to_drive else to_loc
             segments.append(Segment(
                 status="off_duty",
                 start=state.t,
                 end=state.t + BREAK_DURATION,
                 description="30-minute required rest break",
                 location=rest_loc,
+                cycle_after=state.cycle_used,
+                cumulative_miles=state.total_miles,
             ))
             state.t += BREAK_DURATION
             state.cum_driving = 0.0
-            # Break consumes window time but is off-duty (not driving/on-duty)
             continue
 
         # ── Compute this drive segment ────────────────────────────────────────
-        # Cap by: break requirement, HOS limits, remaining miles, fuel interval
         max_drive_before_break = min(available, break_remaining)
 
         miles_to_fuel = FUEL_INTERVAL_MILES - state.miles_since_fuel
@@ -148,25 +237,25 @@ def _drive_miles(
 
         # Would we hit a fuel stop before running out of road?
         if miles_to_fuel < miles_left and hours_to_fuel < max_drive_before_break:
-            # Drive to fuel stop
             drive_hrs  = hours_to_fuel
             drive_mi   = miles_to_fuel
-            next_loc   = f"Fuel stop near {to_loc}"
+            next_loc   = f"Mile {(state.total_miles + drive_mi):.0f} ({from_loc} → {to_loc})"
         else:
-            # Drive as far as possible
             max_mi     = min(miles_left, max_drive_before_break * AVG_SPEED_MPH)
             drive_mi   = max_mi
             drive_hrs  = drive_mi / AVG_SPEED_MPH
-            next_loc   = to_loc if drive_mi >= miles_left else from_loc
+            next_loc   = to_loc if drive_mi >= miles_left - 0.01 else f"Mile {(state.total_miles + drive_mi):.0f} ({from_loc} → {to_loc})"
 
         if drive_hrs <= 0.001:
             # Edge case: almost no driving possible — force rest
             segments.append(Segment(
-                status="off_duty",
+                status="sleeper_berth",
                 start=state.t,
                 end=state.t + MIN_REST_HOURS,
                 description="Required 10-hour rest period",
                 location=from_loc,
+                cycle_after=state.cycle_used,
+                cumulative_miles=state.total_miles,
             ))
             state.t += MIN_REST_HOURS
             state.shift_start   = state.t
@@ -175,14 +264,6 @@ def _drive_miles(
             state.cum_driving   = 0.0
             continue
 
-        segments.append(Segment(
-            status="driving",
-            start=state.t,
-            end=state.t + drive_hrs,
-            description=f"Driving ({drive_mi:.0f} mi)",
-            location=next_loc,
-            miles=drive_mi,
-        ))
         state.t                 += drive_hrs
         state.shift_driving     += drive_hrs
         state.shift_on_duty     += drive_hrs
@@ -190,6 +271,18 @@ def _drive_miles(
         state.cycle_used        += drive_hrs
         miles_left              -= drive_mi
         state.miles_since_fuel  += drive_mi
+        state.total_miles       += drive_mi
+
+        segments.append(Segment(
+            status="driving",
+            start=state.t - drive_hrs,
+            end=state.t,
+            description=f"Driving ({drive_mi:.0f} mi)",
+            location=next_loc,
+            miles=drive_mi,
+            cycle_after=state.cycle_used,
+            cumulative_miles=state.total_miles,
+        ))
 
         # ── Fuel stop if we just reached the threshold ────────────────────────
         if state.miles_since_fuel >= FUEL_INTERVAL_MILES - 0.01 and miles_left > 0.01:
@@ -200,6 +293,8 @@ def _drive_miles(
                 end=state.t + FUEL_STOP_DURATION,
                 description="Fuel stop",
                 location=fuel_loc,
+                cycle_after=state.cycle_used + FUEL_STOP_DURATION,
+                cumulative_miles=state.total_miles,
             ))
             state.t                 += FUEL_STOP_DURATION
             state.shift_on_duty     += FUEL_STOP_DURATION
@@ -219,8 +314,6 @@ def _build_daily_logs(segments: List[Segment]) -> List[dict]:
 
     trip_end = segments[-1].end
     total_days = math.ceil(trip_end / 24)
-
-    # Ensure total_days is at least 1
     total_days = max(total_days, 1)
 
     daily_logs = []
@@ -243,8 +336,10 @@ def _build_daily_logs(segments: List[Segment]) -> List[dict]:
                 "duration":     round(clip_end - clip_start,  4),
                 "description":  seg.description,
                 "location":     seg.location,
+                "miles":        round(seg.miles, 2) if seg.miles else 0.0,
                 "start_time":   _hours_to_hhmm(clip_start - day_start),
                 "end_time":     _hours_to_hhmm(clip_end   - day_start),
+                "cycle_after":  seg.cycle_after,
             })
 
         # Sort and fill gaps with off_duty
@@ -258,16 +353,31 @@ def _build_daily_logs(segments: List[Segment]) -> List[dict]:
             "driving":             0.0,
             "on_duty_not_driving": 0.0,
         }
+        daily_miles_driven = 0.0
         for s in filled:
             key = s["status"]
             if key in totals:
                 totals[key] = round(totals[key] + s["duration"], 4)
+            if key == "driving":
+                daily_miles_driven += s.get("miles", 0.0)
+
+        # Calculate cumulative total miles up to end of this day
+        cumulative_total_miles = 0.0
+        for seg in segments:
+            if seg.end <= day_end and seg.status == "driving":
+                cumulative_total_miles += seg.miles
 
         daily_logs.append({
             "day":      day,
             "label":    f"Day {day}",
             "segments": filled,
             "totals":   totals,
+            "daily_miles_driven":     round(daily_miles_driven, 1),
+            "cumulative_total_miles": round(cumulative_total_miles, 1),
+            "recap": {
+                "cycle_hours_after": round(filled[-1].get("cycle_after", 0.0) if filled else 0.0, 2),
+                "cycle_hours_remaining": round(max(0, CYCLE_LIMIT - (filled[-1].get("cycle_after", 0.0) if filled else 0.0)), 2),
+            }
         })
 
     return daily_logs
@@ -303,6 +413,7 @@ def _off_duty_block(start: float, end: float, desc: str) -> dict:
         "location":    "",
         "start_time":  _hours_to_hhmm(start),
         "end_time":    _hours_to_hhmm(end),
+        "cycle_after": 0.0,
     }
 
 
@@ -338,6 +449,23 @@ def plan_trip(
         cycle_used=cycle_hours_used,
     )
 
+    # ── Prior duty block (if driver has prior cycle hours) ─────────────────────
+    # Generate a solid block showing the prior on-duty time from previous trips.
+    # This makes the 70hr cycle math self-documenting on the log sheets.
+    if cycle_hours_used > 0:
+        # Place prior duty at the start of the day (midnight to however many hours)
+        prior_end = min(cycle_hours_used, TRIP_START_HOUR)  # Don't overlap with trip start
+        if prior_end > 0.01:
+            segments.append(Segment(
+                status="on_duty_not_driving",
+                start=0.0,
+                end=prior_end,
+                description=f"Prior duty from previous trips ({cycle_hours_used:.1f}h cycle used)",
+                location=current_location,
+                cycle_after=cycle_hours_used,
+                cumulative_miles=0.0,
+            ))
+
     # ── Pre-trip inspection ───────────────────────────────────────────────────
     segments.append(Segment(
         status="on_duty_not_driving",
@@ -345,6 +473,8 @@ def plan_trip(
         end=state.t + PRE_TRIP_DURATION,
         description="Pre-trip inspection",
         location=current_location,
+        cycle_after=state.cycle_used + PRE_TRIP_DURATION,
+        cumulative_miles=0.0,
     ))
     state.t             += PRE_TRIP_DURATION
     state.shift_on_duty += PRE_TRIP_DURATION
@@ -355,6 +485,28 @@ def plan_trip(
         _drive_miles(leg1_miles, state, current_location, pickup_location, segments)
 
     # ── Pickup stop ───────────────────────────────────────────────────────────
+    _insert_nighttime_rest(state, segments, pickup_location)
+    # Ensure we have enough cycle/window to do the pickup work
+    if (state.t - state.shift_start + PICKUP_DURATION > MAX_WINDOW_HOURS) or \
+       (state.cycle_used + PICKUP_DURATION > CYCLE_LIMIT):
+        rest_duration = 34.0 if state.cycle_used > CYCLE_LIMIT - 1.0 else MIN_REST_HOURS
+        segments.append(Segment(
+            status="off_duty",
+            start=state.t,
+            end=state.t + rest_duration,
+            description="Rest before pickup" if rest_duration < 34 else "34-hour restart before pickup",
+            location=pickup_location,
+            cycle_after=0.0 if rest_duration >= 34 else state.cycle_used,
+            cumulative_miles=state.total_miles,
+        ))
+        state.t += rest_duration
+        state.shift_start = state.t
+        state.shift_driving = 0.0
+        state.shift_on_duty = 0.0
+        state.cum_driving = 0.0
+        if rest_duration >= 34:
+            state.cycle_used = 0.0
+
     pickup_start = state.t
     segments.append(Segment(
         status="on_duty_not_driving",
@@ -362,6 +514,8 @@ def plan_trip(
         end=state.t + PICKUP_DURATION,
         description="Pickup — loading & paperwork",
         location=pickup_location,
+        cycle_after=state.cycle_used + PICKUP_DURATION,
+        cumulative_miles=state.total_miles,
     ))
     state.t             += PICKUP_DURATION
     state.shift_on_duty += PICKUP_DURATION
@@ -372,6 +526,27 @@ def plan_trip(
     _drive_miles(leg2_miles, state, pickup_location, dropoff_location, segments)
 
     # ── Dropoff stop ──────────────────────────────────────────────────────────
+    _insert_nighttime_rest(state, segments, dropoff_location)
+    if (state.t - state.shift_start + DROPOFF_DURATION > MAX_WINDOW_HOURS) or \
+       (state.cycle_used + DROPOFF_DURATION > CYCLE_LIMIT):
+        rest_duration = 34.0 if state.cycle_used > CYCLE_LIMIT - 1.0 else MIN_REST_HOURS
+        segments.append(Segment(
+            status="off_duty",
+            start=state.t,
+            end=state.t + rest_duration,
+            description="Rest before dropoff" if rest_duration < 34 else "34-hour restart before dropoff",
+            location=dropoff_location,
+            cycle_after=0.0 if rest_duration >= 34 else state.cycle_used,
+            cumulative_miles=state.total_miles,
+        ))
+        state.t += rest_duration
+        state.shift_start = state.t
+        state.shift_driving = 0.0
+        state.shift_on_duty = 0.0
+        state.cum_driving = 0.0
+        if rest_duration >= 34:
+            state.cycle_used = 0.0
+
     dropoff_start = state.t
     segments.append(Segment(
         status="on_duty_not_driving",
@@ -379,6 +554,8 @@ def plan_trip(
         end=state.t + DROPOFF_DURATION,
         description="Dropoff — unloading & paperwork",
         location=dropoff_location,
+        cycle_after=state.cycle_used + DROPOFF_DURATION,
+        cumulative_miles=state.total_miles,
     ))
     state.t             += DROPOFF_DURATION
     state.cycle_used    += DROPOFF_DURATION
@@ -387,30 +564,33 @@ def plan_trip(
     # ── Build output ──────────────────────────────────────────────────────────
     daily_logs = _build_daily_logs(segments)
 
-    # Stops list (for map display)
+    # Stops list (for map display) — include cumulative_miles for interpolation
     stops = [
         {
-            "type":          "start",
+            "stop_type":     "start",
             "location":      current_location,
             "hour_absolute": TRIP_START_HOUR,
             "time_label":    f"Day 1, {_hours_to_hhmm(TRIP_START_HOUR)}",
             "description":   "Trip start / pre-trip inspection",
+            "cumulative_miles": 0.0,
         },
         {
-            "type":          "pickup",
+            "stop_type":     "pickup",
             "location":      pickup_location,
             "hour_absolute": pickup_start,
             "time_label":    f"Day {_day_number(pickup_start)}, {_hours_to_hhmm(pickup_start % 24)}",
             "duration_hours": PICKUP_DURATION,
             "description":   "Pickup (1 hr on-duty)",
+            "cumulative_miles": leg1_miles,
         },
         {
-            "type":          "dropoff",
+            "stop_type":     "dropoff",
             "location":      dropoff_location,
             "hour_absolute": dropoff_start,
             "time_label":    f"Day {_day_number(dropoff_start)}, {_hours_to_hhmm(dropoff_start % 24)}",
             "duration_hours": DROPOFF_DURATION,
             "description":   "Dropoff (1 hr on-duty)",
+            "cumulative_miles": leg1_miles + leg2_miles,
         },
     ]
 
@@ -418,24 +598,39 @@ def plan_trip(
     for seg in segments:
         if seg.description == "Fuel stop":
             stops.append({
-                "type":          "fuel",
+                "stop_type":     "fuel",
                 "location":      seg.location,
                 "hour_absolute": seg.start,
                 "time_label":    f"Day {_day_number(seg.start)}, {_hours_to_hhmm(seg.start % 24)}",
                 "duration_hours": FUEL_STOP_DURATION,
-                "description":   "Fuel stop (30 min)",
+                "description":   f"Fuel stop (30 min) — mile {seg.cumulative_miles:.0f}",
+                "cumulative_miles": seg.cumulative_miles,
             })
 
-    # Add rest stops
+    # Add rest stops (10-hour mandatory rest — now sleeper_berth)
     for seg in segments:
-        if seg.status == "off_duty" and seg.duration >= MIN_REST_HOURS - 0.01:
+        if seg.status == "sleeper_berth" and seg.duration >= MIN_REST_HOURS - 0.01:
             stops.append({
-                "type":          "rest",
+                "stop_type":     "rest",
                 "location":      seg.location,
                 "hour_absolute": seg.start,
                 "time_label":    f"Day {_day_number(seg.start)}, {_hours_to_hhmm(seg.start % 24)}",
                 "duration_hours": seg.duration,
-                "description":   f"Required rest ({seg.duration:.1f} hrs)",
+                "description":   f"Required {seg.duration:.0f}h rest — mile {seg.cumulative_miles:.0f}",
+                "cumulative_miles": seg.cumulative_miles,
+            })
+
+    # Add 30-minute breaks to the stops list for map display
+    for seg in segments:
+        if "30-minute" in seg.description:
+            stops.append({
+                "stop_type":     "break",
+                "location":      seg.location,
+                "hour_absolute": seg.start,
+                "time_label":    f"Day {_day_number(seg.start)}, {_hours_to_hhmm(seg.start % 24)}",
+                "duration_hours": BREAK_DURATION,
+                "description":   f"30-min break — mile {seg.cumulative_miles:.0f}",
+                "cumulative_miles": seg.cumulative_miles,
             })
 
     stops.sort(key=lambda s: s["hour_absolute"])
@@ -453,7 +648,7 @@ def plan_trip(
         "cycle_hours_before":    round(cycle_hours_used, 2),
         "cycle_hours_after":     round(state.cycle_used, 2),
         "cycle_hours_remaining": round(CYCLE_LIMIT - state.cycle_used, 2),
-        "num_rest_stops":        sum(1 for s in segments if s.status == "off_duty" and s.duration >= MIN_REST_HOURS - 0.01),
+        "num_rest_stops":        sum(1 for s in segments if s.status == "sleeper_berth" and s.duration >= MIN_REST_HOURS - 0.01),
         "num_fuel_stops":        sum(1 for s in segments if s.description == "Fuel stop"),
         "num_breaks":            sum(1 for s in segments if "30-minute" in s.description),
     }

@@ -4,5 +4,13 @@
     "ultracite/biome/core",
     "ultracite/biome/react",
     "ultracite/biome/vitest"
-  ]
+  ],
+  "vcs": {
+    "enabled": false
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

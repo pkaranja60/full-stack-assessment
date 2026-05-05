@@ -53,6 +53,7 @@ class TripStop(models.Model):
         ("pickup",  "Pickup"),
         ("fuel",    "Fuel Stop"),
         ("rest",    "Rest Stop"),
+        ("break",   "30-Min Break"),
         ("dropoff", "Dropoff"),
     ]
 
@@ -119,6 +120,10 @@ class DailyLog(models.Model):
     total_sleeper_berth       = models.FloatField(default=0.0)
     total_driving             = models.FloatField(default=0.0)
     total_on_duty_not_driving = models.FloatField(default=0.0)
+    
+    # Recap info for the day
+    cycle_hours_after      = models.FloatField(null=True, blank=True)
+    cycle_hours_remaining  = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ["day"]
@@ -148,6 +153,7 @@ class DailyLogSegment(models.Model):
     duration    = models.FloatField()
     description = models.CharField(max_length=255, blank=True)
     location    = models.CharField(max_length=300, blank=True)
+    miles       = models.FloatField(default=0.0)
     start_time  = models.CharField(max_length=10)
     end_time    = models.CharField(max_length=10)
 
