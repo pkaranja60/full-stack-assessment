@@ -17,9 +17,12 @@ const createCustomIcon = (type: string | undefined | null) => {
   let innerHtml = "";
 
   switch (safeType) {
-    case "pickup":
     case "start":
-      color = "#10b981"; // Green for start
+      color = "#f6537b"; // Green for start
+      innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
+      break;  
+    case "pickup":
+      color = "#10f643"; // Green for start
       innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
       break;
     case "dropoff":
@@ -71,17 +74,14 @@ interface MapProps {
   }[];
 }
 
-function ChangeView({
-  center,
-  zoom,
-}: {
-  center: [number, number];
-  zoom: number;
-}) {
+function FitBounds({ positions }: { positions: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
+    if (positions.length > 0) {
+      const bounds = L.latLngBounds(positions);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [positions, map]);
   return null;
 }
 
@@ -103,10 +103,10 @@ export function TripMap({
 }: MapProps) {
   const polyline = useMemo(
     () =>
-      geometry?.coordinates?.map((coord: [number, number]) => [
+      (geometry?.coordinates?.map((coord: [number, number]) => [
         coord[1],
         coord[0],
-      ]) || [],
+      ]) as [number, number][]) || [],
     [geometry]
   );
 
@@ -168,9 +168,7 @@ export function TripMap({
           </MarkerAny>
         ))}
 
-        {polyline.length > 0 && (
-          <ChangeView center={polyline[0] as [number, number]} zoom={6} />
-        )}
+        {polyline.length > 0 && <FitBounds positions={polyline} />}
       </MapContainerAny>
     </div>
   );
