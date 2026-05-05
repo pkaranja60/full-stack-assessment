@@ -13,16 +13,16 @@ import {
 // Function to create custom markers based on stop type
 const createCustomIcon = (type: string | undefined | null) => {
   const safeType = (type || "intermediate").toLowerCase();
-  let color = "#8b5cf6"; // Default intermediate color
+  let color = "#e2c41e"; // Default intermediate color
   let innerHtml = "";
 
   switch (safeType) {
-    case "start":
-      color = "#f6537b"; // Green for start
-      innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
-      break;  
     case "pickup":
-      color = "#10f643"; // Green for start
+      color = "#e2931e"; // Green for start
+      innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
+      break;
+    case "start":
+      color = "#10b981"; // Green for start
       innerHtml = '<div class="w-2 h-2 bg-white rounded-full"></div>';
       break;
     case "dropoff":
@@ -39,8 +39,13 @@ const createCustomIcon = (type: string | undefined | null) => {
       innerHtml =
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h11a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v13a3 3 0 0 0 3 3h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2"></path><path d="m9 2 3 3"></path><path d="m12 2-3 3"></path></svg>';
       break;
+    case "break":
+      color = "#f59e0b"; // Amber for 30-min breaks
+      innerHtml =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+      break;
     default:
-      color = "#e2c41e"; // Purple for any other intermediate stops
+      color = "#e2c41e"; // for any other intermediate stops
       innerHtml = '<div class="w-1.5 h-1.5 bg-white rounded-full"></div>';
       break;
   }
@@ -74,14 +79,17 @@ interface MapProps {
   }[];
 }
 
-function FitBounds({ positions }: { positions: [number, number][] }) {
+function ChangeView({
+  center,
+  zoom,
+}: {
+  center: [number, number];
+  zoom: number;
+}) {
   const map = useMap();
   useEffect(() => {
-    if (positions.length > 0) {
-      const bounds = L.latLngBounds(positions);
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [positions, map]);
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
   return null;
 }
 
@@ -103,10 +111,10 @@ export function TripMap({
 }: MapProps) {
   const polyline = useMemo(
     () =>
-      (geometry?.coordinates?.map((coord: [number, number]) => [
+      geometry?.coordinates?.map((coord: [number, number]) => [
         coord[1],
         coord[0],
-      ]) as [number, number][]) || [],
+      ]) || [],
     [geometry]
   );
 
@@ -168,7 +176,9 @@ export function TripMap({
           </MarkerAny>
         ))}
 
-        {polyline.length > 0 && <FitBounds positions={polyline} />}
+        {polyline.length > 0 && (
+          <ChangeView center={polyline[0] as [number, number]} zoom={6} />
+        )}
       </MapContainerAny>
     </div>
   );
