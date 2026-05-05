@@ -83,6 +83,7 @@ class DailyLogSerializer(serializers.ModelSerializer):
 class TripSerializer(serializers.ModelSerializer):
     """Full trip detail — used by GET /api/trip/<id>/"""
 
+    trip_id    = serializers.CharField(source="id", read_only=True)
     stops      = TripStopSerializer(many=True, read_only=True)
     segments   = TripSegmentSerializer(many=True, read_only=True)
     daily_logs = DailyLogSerializer(many=True, read_only=True)
@@ -93,7 +94,7 @@ class TripSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Trip
         fields = [
-            "id", "created_at",
+            "id", "trip_id", "created_at",
             "inputs", "route", "summary",
             "daily_logs", "stops", "segments",
         ]
