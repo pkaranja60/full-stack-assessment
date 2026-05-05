@@ -85,13 +85,25 @@ function App() {
                     Review and verify your daily duty cycles
                   </p>
                 </div>
-                <button
-                  className="rounded-full bg-brand-primary px-6 py-2 font-bold text-white shadow-lg transition-transform hover:scale-105"
-                  onClick={() => setActiveView("planner")}
-                  type="button"
-                >
-                  Back to Map
-                </button>
+                <div className="flex gap-4">
+                  {tripData?.trip_id && (
+                    <a
+                      className="inline-flex items-center gap-2 rounded-full border-2 border-stone-200 bg-white px-6 py-2 font-bold text-stone-700 transition-transform hover:scale-105 dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300"
+                      href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/trip/${tripData.trip_id}/download-logs/`}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      Download PNG Logs
+                    </a>
+                  )}
+                  <button
+                    className="rounded-full bg-brand-primary px-6 py-2 font-bold text-white shadow-lg transition-transform hover:scale-105"
+                    onClick={() => setActiveView("planner")}
+                    type="button"
+                  >
+                    Back to Map
+                  </button>
+                </div>
               </header>
 
               {tripData?.daily_logs ? (

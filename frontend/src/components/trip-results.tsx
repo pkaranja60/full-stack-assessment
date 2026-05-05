@@ -10,6 +10,7 @@ interface TripResultsProps {
       cycle_hours_remaining: number;
       num_rest_stops: number;
     };
+    trip_id?: string;
     stops: {
       location: string;
       stop_type: string;
@@ -100,6 +101,17 @@ export function TripResults({ data }: { data: TripResultsProps["data"] }) {
             </div>
           </div>
         </div>
+
+        {data.trip_id && (
+          <a
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white py-2.5 font-bold text-stone-600 text-xs transition-colors hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+            href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/trip/${data.trip_id}/download-logs/`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Download PNG Logs
+          </a>
+        )}
       </section>
 
       <section className="space-y-6">

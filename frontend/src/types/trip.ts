@@ -22,4 +22,5 @@ export interface TripData {
     cycle_hours_remaining: number;
     num_rest_stops: number;
   };
+  trip_id: string;
 }
