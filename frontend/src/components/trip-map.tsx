@@ -28,7 +28,7 @@ interface MapProps {
   center?: [number, number];
   geometry?: { coordinates: [number, number][] };
   stops?: {
-    coordinates: [number, number];
+    coordinates: [number, number] | null;
     location: string;
     stop_type: string;
     time_label: string;
@@ -67,39 +67,51 @@ export function TripMap({
       coord[0],
     ]) || [];
 
+  // Only render markers for stops that have valid coordinates
+  const stopsWithCoords = (stops ?? []).filter(
+    (s): s is typeof s & { coordinates: [number, number] } =>
+      s.coordinates != null &&
+      Array.isArray(s.coordinates) &&
+      s.coordinates.length === 2
+  );
+
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full bg-stone-100 dark:bg-stone-900">
       <MapContainerAny
         center={center}
-        className="h-full w-full"
+        className="h-full w-full outline-none"
         scrollWheelZoom={true}
         zoom={4}
       >
         <TileLayerAny
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {polyline.length > 0 && (
           <PolylineAny
-            opacity={0.7}
-            pathOptions={{ color: "#3b82f6", weight: 4 }}
+            opacity={0.8}
+            pathOptions={{ color: "#c5a059", weight: 5 }}
             positions={polyline}
           />
         )}
 
-        {stops?.map((stop) => (
+        {stopsWithCoords.map((stop) => (
           <Marker
             key={`${stop.location}-${stop.stop_type}`}
             position={[stop.coordinates[1], stop.coordinates[0]]}
           >
             <Popup>
-              <div className="text-sm">
-                <p className="font-bold">{stop.location}</p>
-                <p className="text-slate-500 capitalize">
-                  {stop.stop_type.replace("_", " ")}
-                </p>
-                <p className="text-xs">{stop.time_label}</p>
+              <div className="p-1 text-sm">
+                <p className="font-bold text-stone-900">{stop.location}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="rounded-full bg-stone-100 px-2 py-0.5 font-bold text-[10px] text-stone-600 uppercase">
+                    {stop.stop_type.replace("_", " ")}
+                  </span>
+                  <span className="text-[10px] text-stone-500">
+                    {stop.time_label}
+                  </span>
+                </div>
               </div>
             </Popup>
           </Marker>

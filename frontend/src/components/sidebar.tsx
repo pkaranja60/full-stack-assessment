@@ -7,7 +7,9 @@ interface SidebarProps {
   // biome-ignore lint/suspicious/noExplicitAny: History data from API
   historyData: any;
   isOpen: boolean;
+  onSelectTrip: (id: string) => void;
   onShowLogs: () => void;
+  onStartPlanning: () => void;
   onToggle: () => void;
   onTripSuccess: (data: TripData) => void;
   setTripData: (data: TripData | null) => void;
@@ -17,7 +19,9 @@ interface SidebarProps {
 export function Sidebar({
   historyData,
   isOpen,
+  onSelectTrip,
   onShowLogs,
+  onStartPlanning,
   onToggle,
   onTripSuccess,
   setTripData,
@@ -33,8 +37,8 @@ export function Sidebar({
         {/* Header */}
         <header className="flex items-center justify-between border-stone-200 border-b p-6 dark:border-stone-800">
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-brand-primary p-2">
-              <Truck className="h-5 w-5 text-stone-900" />
+            <div className="rounded-lg bg-brand-primary p-2 shadow-inner">
+              <Truck className="h-5 w-5 text-white" />
             </div>
             <h1 className="font-bold text-brand-primary text-xl tracking-tight">
               ELD Planner
@@ -62,7 +66,7 @@ export function Sidebar({
                 <h2 className="mb-4 font-bold text-brand-primary text-lg">
                   Plan New Trip
                 </h2>
-                <TripForm onSuccess={onTripSuccess} />
+                <TripForm onStart={onStartPlanning} onSuccess={onTripSuccess} />
               </section>
 
               {historyData?.trips?.length > 0 && (
@@ -73,7 +77,8 @@ export function Sidebar({
                       Recent Trips
                     </h2>
                   </div>
-                  <div className="space-y-3">
+                  {/* Scrollable Trips List */}
+                  <div className="custom-scrollbar max-h-[300px] space-y-3 overflow-y-auto pr-2">
                     {historyData.trips.map(
                       (trip: {
                         id: string;
@@ -84,14 +89,13 @@ export function Sidebar({
                         <button
                           className="group w-full rounded-xl border border-stone-200 bg-white/50 p-4 text-left transition-all hover:border-brand-primary hover:bg-white dark:border-stone-800 dark:bg-stone-900/50"
                           key={trip.id}
-                          // biome-ignore lint/suspicious/noExplicitAny: Trip summary from history
-                          onClick={() => setTripData(trip as any)}
+                          onClick={() => onSelectTrip(trip.id)}
                           type="button"
                         >
                           <p className="mb-1 font-bold text-stone-400 text-xs transition-colors group-hover:text-brand-primary">
                             {new Date(trip.created_at).toLocaleDateString()}
                           </p>
-                          <p className="truncate font-bold text-sm group-hover:text-brand-primary">
+                          <p className="truncate font-bold text-sm text-stone-700 group-hover:text-brand-primary dark:text-stone-300">
                             {trip.current_location} → {trip.dropoff_location}
                           </p>
                         </button>

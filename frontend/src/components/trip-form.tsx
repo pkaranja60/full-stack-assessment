@@ -6,10 +6,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
 interface TripFormProps {
+  onStart?: () => void;
   onSuccess: (data: unknown) => void;
 }
 
-export function TripForm({ onSuccess }: TripFormProps) {
+export function TripForm({ onStart, onSuccess }: TripFormProps) {
   const [formData, setFormData] = useState({
     current_location: "Los Angeles, CA",
     pickup_location: "Chicago, IL",
@@ -21,6 +22,7 @@ export function TripForm({ onSuccess }: TripFormProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    onStart?.();
     planTrip(formData, {
       onSuccess: (data) => {
         onSuccess(data);
