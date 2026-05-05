@@ -13,6 +13,10 @@ from .serializers import (
 from .services.hos_calculator import plan_trip
 from .services.route_service import get_route_info
 from .models import Trip, TripStop, TripSegment, DailyLog, DailyLogSegment
+from logs.log_generator import generate_trip_logs
+import zipfile
+import io
+from django.http import HttpResponse, FileResponse
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +286,52 @@ def list_trips_view(request: Request) -> Response:
         "success": True,
         "trips":   TripListSerializer(trips, many=True).data,
     })
+
+
+@api_view(["GET"])
+def download_trip_logs_view(request: Request, trip_id: str) -> HttpResponse:
+    """
+    GET /api/trip/<trip_id>/download-logs/
+    Generates PNG log sheets for every day and returns them in a ZIP archive.
+    """
+    try:
+        trip = Trip.objects.prefetch_related(
+            "stops", "segments", "daily_logs__segments"
+        ).get(id=trip_id)
+    except Trip.DoesNotExist:
+        return Response(
+            {"success": False, "error": "Trip not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 1. Prepare trip data for the generator (matching serializer format)
+    trip_data = TripSerializer(trip).data
+
+    # 2. Generate log images
+    try:
+        log_results = generate_trip_logs(trip_data)
+    except Exception as exc:
+        logger.exception("Failed to generate log images")
+        return Response(
+            {"success": False, "error": f"Log generation failed: {exc}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 3. Create ZIP archive in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for res in log_results:
+            day_num = res["day"]
+            img_bytes = res["image_bytes"]
+            zip_file.writestr(f"Daily_Log_Day_{day_num}.png", img_bytes)
+
+    zip_buffer.seek(0)
+
+    # 4. Return as attachment
+    filename = f"Trip_Logs_{trip.current_location[:20]}_to_{trip.dropoff_location[:20]}.zip"
+    response = HttpResponse(zip_buffer, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @api_view(["GET"])
