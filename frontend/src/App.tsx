@@ -6,7 +6,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useState } from "react";
-import { LogSheet } from "./components/log-sheet";
+import { type LogSegment, LogSheet } from "./components/log-sheet";
 import { TripForm } from "./components/trip-form";
 import { TripMap } from "./components/trip-map";
 import { TripResults } from "./components/trip-results";
@@ -14,15 +14,39 @@ import { Button } from "./components/ui/button";
 import { Modal } from "./components/ui/modal";
 import { useTripsList } from "./hooks/use-trips";
 
+interface TripData {
+  daily_logs: {
+    label: string;
+    segments: LogSegment[];
+    totals: Record<string, number>;
+  }[];
+  route: { geometry: { coordinates: [number, number][] } };
+  stops: {
+    location: string;
+    stop_type: string;
+    time_label: string;
+    coordinates: [number, number];
+    description: string;
+    duration_hours: number;
+  }[];
+  summary: {
+    total_distance_miles: number;
+    total_driving_hours: number;
+    total_days: number;
+    cycle_hours_remaining: number;
+    num_rest_stops: number;
+  };
+}
+
 function App() {
-  const [tripData, setTripData] = useState<unknown>(null);
+  const [tripData, setTripData] = useState<TripData | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
 
   const { data: historyData } = useTripsList();
 
   const handleTripSuccess = (data: unknown) => {
-    setTripData(data);
+    setTripData(data as TripData);
   };
 
   return (
@@ -88,7 +112,8 @@ function App() {
                           <button
                             className="group w-full rounded-xl border border-slate-100 bg-white p-4 text-left transition-colors hover:border-brand-primary dark:border-slate-800 dark:bg-slate-900"
                             key={trip.id}
-                            onClick={() => setTripData(trip)}
+                            // biome-ignore lint/suspicious/noExplicitAny: Trip summary from history
+                            onClick={() => setTripData(trip as any)}
                             type="submit"
                           >
                             <p className="mb-1 font-bold text-brand-primary text-xs">

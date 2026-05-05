@@ -49,6 +49,13 @@ function ChangeView({
   return null;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Workaround for react-leaflet v5 RC.2 type issues
+const MapContainerAny = MapContainer as any;
+// biome-ignore lint/suspicious/noExplicitAny: Workaround for react-leaflet v5 RC.2 type issues
+const TileLayerAny = TileLayer as any;
+// biome-ignore lint/suspicious/noExplicitAny: Workaround for react-leaflet v5 RC.2 type issues
+const PolylineAny = Polyline as any;
+
 export function TripMap({
   geometry,
   stops,
@@ -62,23 +69,22 @@ export function TripMap({
 
   return (
     <div className="relative h-full w-full">
-      <MapContainer
+      <MapContainerAny
         center={center}
         className="h-full w-full"
         scrollWheelZoom={true}
         zoom={4}
       >
-        <TileLayer
+        <TileLayerAny
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {polyline.length > 0 && (
-          <Polyline
-            color="#3b82f6"
+          <PolylineAny
             opacity={0.7}
+            pathOptions={{ color: "#3b82f6", weight: 4 }}
             positions={polyline}
-            weight={4}
           />
         )}
 
@@ -99,8 +105,10 @@ export function TripMap({
           </Marker>
         ))}
 
-        {polyline.length > 0 && <ChangeView center={polyline[0]} zoom={6} />}
-      </MapContainer>
+        {polyline.length > 0 && (
+          <ChangeView center={polyline[0] as [number, number]} zoom={6} />
+        )}
+      </MapContainerAny>
     </div>
   );
 }

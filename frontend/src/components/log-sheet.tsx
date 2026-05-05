@@ -1,6 +1,6 @@
 import { Badge } from "./ui/badge";
 
-interface LogSegment {
+export interface LogSegment {
   description?: string;
   duration: number;
   end_hour: number;
@@ -174,7 +174,7 @@ export function LogSheet({ log }: LogSheetProps) {
                 <span className="flex-1 font-medium text-xs">
                   {seg.description || seg.location}
                 </span>
-                {seg.miles > 0 && (
+                {seg.miles !== undefined && seg.miles > 0 && (
                   <span className="font-bold text-[10px] text-brand-primary">
                     {seg.miles} mi
                   </span>
