@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import serializers
 from .models import Trip, TripStop, TripSegment, DailyLog, DailyLogSegment
 
@@ -53,6 +54,7 @@ class DailyLogSegmentSerializer(serializers.ModelSerializer):
         fields = [
             "status", "start_hour", "end_hour", "duration",
             "description", "location", "start_time", "end_time",
+            "miles",
         ]
 
 
@@ -60,10 +62,27 @@ class DailyLogSerializer(serializers.ModelSerializer):
     segments = DailyLogSegmentSerializer(many=True, read_only=True)
     totals   = serializers.SerializerMethodField()
     recap    = serializers.SerializerMethodField()
+    daily_miles_driven     = serializers.SerializerMethodField()
+    cumulative_total_miles = serializers.SerializerMethodField()
 
     class Meta:
         model  = DailyLog
-        fields = ["day", "label", "segments", "totals", "recap"]
+        fields = ["day", "label", "segments", "totals", "recap",
+                  "daily_miles_driven", "cumulative_total_miles"]
+
+    def get_daily_miles_driven(self, obj):
+        return round(sum(s.miles for s in obj.segments.all() if s.status == "driving"), 1)
+
+    def get_cumulative_total_miles(self, obj):
+        # Sum all driving miles from day 1 through this day
+        from .models import DailyLogSegment
+        return round(
+            DailyLogSegment.objects.filter(
+                daily_log__trip=obj.trip,
+                daily_log__day__lte=obj.day,
+                status="driving",
+            ).aggregate(total=models.Sum("miles"))["total"] or 0.0, 1
+        )
 
     def get_recap(self, obj):
         return {

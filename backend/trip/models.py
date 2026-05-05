@@ -153,6 +153,7 @@ class DailyLogSegment(models.Model):
     duration    = models.FloatField()
     description = models.CharField(max_length=255, blank=True)
     location    = models.CharField(max_length=300, blank=True)
+    miles       = models.FloatField(default=0.0)
     start_time  = models.CharField(max_length=10)
     end_time    = models.CharField(max_length=10)
 

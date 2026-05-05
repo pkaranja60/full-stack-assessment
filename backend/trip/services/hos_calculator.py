@@ -199,7 +199,7 @@ def _drive_miles(
 
             # ── Must rest (shift limit or window exhausted) ───────────────────
             segments.append(Segment(
-                status="off_duty",
+                status="sleeper_berth",
                 start=state.t,
                 end=state.t + MIN_REST_HOURS,
                 description="Required 10-hour rest period",
@@ -249,7 +249,7 @@ def _drive_miles(
         if drive_hrs <= 0.001:
             # Edge case: almost no driving possible — force rest
             segments.append(Segment(
-                status="off_duty",
+                status="sleeper_berth",
                 start=state.t,
                 end=state.t + MIN_REST_HOURS,
                 description="Required 10-hour rest period",
@@ -336,6 +336,7 @@ def _build_daily_logs(segments: List[Segment]) -> List[dict]:
                 "duration":     round(clip_end - clip_start,  4),
                 "description":  seg.description,
                 "location":     seg.location,
+                "miles":        round(seg.miles, 2) if seg.miles else 0.0,
                 "start_time":   _hours_to_hhmm(clip_start - day_start),
                 "end_time":     _hours_to_hhmm(clip_end   - day_start),
                 "cycle_after":  seg.cycle_after,
@@ -352,16 +353,27 @@ def _build_daily_logs(segments: List[Segment]) -> List[dict]:
             "driving":             0.0,
             "on_duty_not_driving": 0.0,
         }
+        daily_miles_driven = 0.0
         for s in filled:
             key = s["status"]
             if key in totals:
                 totals[key] = round(totals[key] + s["duration"], 4)
+            if key == "driving":
+                daily_miles_driven += s.get("miles", 0.0)
+
+        # Calculate cumulative total miles up to end of this day
+        cumulative_total_miles = 0.0
+        for seg in segments:
+            if seg.end <= day_end and seg.status == "driving":
+                cumulative_total_miles += seg.miles
 
         daily_logs.append({
             "day":      day,
             "label":    f"Day {day}",
             "segments": filled,
             "totals":   totals,
+            "daily_miles_driven":     round(daily_miles_driven, 1),
+            "cumulative_total_miles": round(cumulative_total_miles, 1),
             "recap": {
                 "cycle_hours_after": round(filled[-1].get("cycle_after", 0.0) if filled else 0.0, 2),
                 "cycle_hours_remaining": round(max(0, CYCLE_LIMIT - (filled[-1].get("cycle_after", 0.0) if filled else 0.0)), 2),
@@ -595,9 +607,9 @@ def plan_trip(
                 "cumulative_miles": seg.cumulative_miles,
             })
 
-    # Add rest stops (10-hour mandatory rest)
+    # Add rest stops (10-hour mandatory rest — now sleeper_berth)
     for seg in segments:
-        if seg.status == "off_duty" and seg.duration >= MIN_REST_HOURS - 0.01:
+        if seg.status == "sleeper_berth" and seg.duration >= MIN_REST_HOURS - 0.01:
             stops.append({
                 "stop_type":     "rest",
                 "location":      seg.location,
@@ -636,7 +648,7 @@ def plan_trip(
         "cycle_hours_before":    round(cycle_hours_used, 2),
         "cycle_hours_after":     round(state.cycle_used, 2),
         "cycle_hours_remaining": round(CYCLE_LIMIT - state.cycle_used, 2),
-        "num_rest_stops":        sum(1 for s in segments if s.status == "off_duty" and s.duration >= MIN_REST_HOURS - 0.01),
+        "num_rest_stops":        sum(1 for s in segments if s.status == "sleeper_berth" and s.duration >= MIN_REST_HOURS - 0.01),
         "num_fuel_stops":        sum(1 for s in segments if s.description == "Fuel stop"),
         "num_breaks":            sum(1 for s in segments if "30-minute" in s.description),
     }

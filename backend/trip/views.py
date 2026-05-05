@@ -204,6 +204,7 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
                 duration    = seg["duration"],
                 description = seg.get("description", ""),
                 location    = seg.get("location", ""),
+                miles       = seg.get("miles", 0.0),
                 start_time  = seg.get("start_time", ""),
                 end_time    = seg.get("end_time", ""),
             ))
@@ -304,6 +305,7 @@ def plan_trip_view(request: Request) -> Response:
     return Response({
         "success":    True,
         "trip_id":    str(trip.id),
+        "created_at": trip.created_at.isoformat(),
         "route": {
             "geometry":             route_info["geometry"],
             "total_distance_miles": route_info["total_distance_miles"],
