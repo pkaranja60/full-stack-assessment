@@ -119,6 +119,10 @@ class DailyLog(models.Model):
     total_sleeper_berth       = models.FloatField(default=0.0)
     total_driving             = models.FloatField(default=0.0)
     total_on_duty_not_driving = models.FloatField(default=0.0)
+    
+    # Recap info for the day
+    cycle_hours_after      = models.FloatField(null=True, blank=True)
+    cycle_hours_remaining  = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ["day"]

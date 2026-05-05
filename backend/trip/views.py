@@ -101,6 +101,7 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
     # ── Daily logs + per-day segments ─────────────────────────────────────────
     for log_data in trip_plan["daily_logs"]:
         totals = log_data["totals"]
+        recap = log_data.get("recap", {})
         daily_log = DailyLog.objects.create(
             trip                      = trip,
             day                       = log_data["day"],
@@ -109,6 +110,8 @@ def _save_trip(data, route_info, trip_plan) -> Trip:
             total_sleeper_berth       = totals.get("sleeper_berth", 0.0),
             total_driving             = totals.get("driving", 0.0),
             total_on_duty_not_driving = totals.get("on_duty_not_driving", 0.0),
+            cycle_hours_after         = recap.get("cycle_hours_after"),
+            cycle_hours_remaining     = recap.get("cycle_hours_remaining"),
         )
 
         log_seg_objs = []

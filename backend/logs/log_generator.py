@@ -502,7 +502,7 @@ def generate_trip_logs(trip_data: dict) -> List[dict]:
             day      = log["day"],
             segments = log["segments"],
             totals   = log["totals"],
-            summary  = summary,
+            summary  = log.get("recap", {}),
             header   = header,
         )
         results.append({

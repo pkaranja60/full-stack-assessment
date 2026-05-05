@@ -59,10 +59,17 @@ class DailyLogSegmentSerializer(serializers.ModelSerializer):
 class DailyLogSerializer(serializers.ModelSerializer):
     segments = DailyLogSegmentSerializer(many=True, read_only=True)
     totals   = serializers.SerializerMethodField()
+    recap    = serializers.SerializerMethodField()
 
     class Meta:
         model  = DailyLog
-        fields = ["day", "label", "segments", "totals"]
+        fields = ["day", "label", "segments", "totals", "recap"]
+
+    def get_recap(self, obj):
+        return {
+            "cycle_hours_after": obj.cycle_hours_after,
+            "cycle_hours_remaining": obj.cycle_hours_remaining,
+        }
 
     def get_totals(self, obj):
         return {
