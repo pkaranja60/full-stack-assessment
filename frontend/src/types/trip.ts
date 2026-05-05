@@ -1,10 +1,17 @@
 import type { LogSegment } from "../components/log-sheet";
 
 export interface TripData {
+  created_at?: string;
   daily_logs: {
     label: string;
     segments: LogSegment[];
     totals: Record<string, number>;
+    daily_miles_driven?: number;
+    cumulative_total_miles?: number;
+    recap?: {
+      cycle_hours_after: number;
+      cycle_hours_remaining: number;
+    };
   }[];
   route: { geometry: { coordinates: [number, number][] } };
   stops: {
