@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #3b82f6;
-  --color-brand-secondary: #6366f1;
-  --color-bg-sidebar: #ffffff;
-  --color-bg-map: #f3f4f6;
+  --color-brand-primary: #c5a059; /* Muted Gold */
+  --color-brand-secondary: #967d5d; /* Sandstone */
+  --color-bg-sidebar: #fcfbf7; /* Eggshell/Cream */
+  --color-bg-map: #f5f2eb; /* Soft Beige */
 
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
   :root {
-    --bg-main: 255 255 255;
-    --text-main: 15 23 42;
+    --bg-main: 252 251 247; /* #fcfbf7 */
+    --text-main: 68 64 60; /* stone-700 */
     --sidebar-width: 400px;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg-main: 15 23 42;
-      --text-main: 248 250 252;
+      --bg-main: 28 25 23; /* stone-900 */
+      --text-main: 245 245 244; /* stone-50 */
     }
   }
 
   body {
     margin: 0;
-    overflow: hidden; /* We handle scrolling in components */
-    @apply bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))] font-sans antialiased; /* We handle scrolling in components */
+    overflow: hidden;
+    @apply bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))] font-sans antialiased;
   }
 
   h1,
