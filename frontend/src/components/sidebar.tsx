@@ -30,11 +30,11 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`glass-panel absolute sm:relative z-40 flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-        isOpen ? "w-full sm:w-[400px]" : "w-0 -translate-x-full"
+      className={`glass-panel absolute left-0 top-0 2xl:relative z-40 flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen ? "w-full 2xl:w-[400px]" : "w-0 -translate-x-full"
       }`}
     >
-      <div className="flex h-full w-full flex-col sm:w-[400px]">
+      <div className="flex h-full w-full flex-col 2xl:w-[400px]">
         {/* Header */}
         <header className="flex shrink-0 items-center justify-between border-stone-200 border-b p-6 dark:border-stone-800">
           <div className="flex items-center gap-2">
@@ -45,9 +45,9 @@ export function Sidebar({
               ELD Planner
             </h1>
           </div>
-          {/* Mobile Close Button */}
+          {/* Mobile/Tablet Close Button */}
           <button
-            className="rounded-full p-2 hover:bg-stone-100 sm:hidden dark:hover:bg-stone-800"
+            className="rounded-full p-2 hover:bg-stone-100 2xl:hidden dark:hover:bg-stone-800"
             onClick={onToggle}
             type="button"
           >
@@ -133,9 +133,9 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Toggle Button (Desktop only) */}
+      {/* Toggle Button (Large screens only) */}
       <button
-        className={`absolute top-1/2 -right-10 z-50 hidden -translate-y-1/2 items-center justify-center rounded-r-xl border border-stone-200 bg-bg-sidebar p-2 shadow-md transition-all hover:bg-stone-100 sm:flex dark:border-stone-800 dark:bg-stone-900 ${
+        className={`absolute top-1/2 -right-10 z-50 hidden -translate-y-1/2 items-center justify-center rounded-r-xl border border-stone-200 bg-bg-sidebar p-2 shadow-md transition-all hover:bg-stone-100 2xl:flex dark:border-stone-800 dark:bg-stone-900 ${
           isOpen ? "" : "right-auto left-0 rounded-l-none"
         }`}
         onClick={onToggle}
@@ -148,6 +148,5 @@ export function Sidebar({
         />
       </button>
     </aside>
-
   );
 }
