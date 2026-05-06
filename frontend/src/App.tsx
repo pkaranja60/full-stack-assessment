@@ -40,7 +40,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg-map">
+    <div className="flex h-dvh w-screen overflow-hidden bg-bg-map">
       {isPlanning && (
         <LoadingOverlay
           message={selectedTripId ? "Fetching trip details..." : undefined}

@@ -36,7 +36,7 @@ export function Sidebar({
     >
       <div className="flex h-full w-full flex-col sm:w-[400px]">
         {/* Header */}
-        <header className="flex items-center justify-between border-stone-200 border-b p-6 dark:border-stone-800">
+        <header className="flex shrink-0 items-center justify-between border-stone-200 border-b p-6 dark:border-stone-800">
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-brand-primary p-2 shadow-inner">
               <Truck className="h-5 w-5 text-white" />
@@ -118,7 +118,7 @@ export function Sidebar({
         </div>
 
         {tripData && (
-          <footer className="border-stone-200 border-t p-6 dark:border-stone-800">
+          <footer className="shrink-0 border-stone-200 border-t p-6 dark:border-stone-800">
             <div className="space-y-3">
               <Button
                 className="h-14 w-full rounded-2xl bg-brand-primary font-bold text-lg text-white shadow-brand-primary/20 shadow-xl transition-all hover:scale-[1.02] hover:bg-brand-primary/90"
