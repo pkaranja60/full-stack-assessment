@@ -30,11 +30,11 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <aside
-      className={`glass-panel relative z-20 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-        isOpen ? "w-[400px]" : "w-0 -translate-x-full"
+      className={`glass-panel absolute sm:relative z-40 flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen ? "w-full sm:w-[400px]" : "w-0 -translate-x-full"
       }`}
     >
-      <div className="flex h-full w-[400px] flex-col">
+      <div className="flex h-full w-full flex-col sm:w-[400px]">
         {/* Header */}
         <header className="flex items-center justify-between border-stone-200 border-b p-6 dark:border-stone-800">
           <div className="flex items-center gap-2">
@@ -45,10 +45,18 @@ export function Sidebar({
               ELD Planner
             </h1>
           </div>
+          {/* Mobile Close Button */}
+          <button
+            className="rounded-full p-2 hover:bg-stone-100 sm:hidden dark:hover:bg-stone-800"
+            onClick={onToggle}
+            type="button"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
         </header>
 
         {/* Main Content Area */}
-        <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-6">
           {tripData ? (
             <div className="space-y-6">
               <button
@@ -125,9 +133,9 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Toggle Button */}
+      {/* Toggle Button (Desktop only) */}
       <button
-        className={`absolute top-1/2 -right-10 z-30 flex -translate-y-1/2 items-center justify-center rounded-r-xl border border-stone-200 bg-bg-sidebar p-2 shadow-md transition-all hover:bg-stone-100 dark:border-stone-800 dark:bg-stone-900 ${
+        className={`absolute top-1/2 -right-10 z-50 hidden -translate-y-1/2 items-center justify-center rounded-r-xl border border-stone-200 bg-bg-sidebar p-2 shadow-md transition-all hover:bg-stone-100 sm:flex dark:border-stone-800 dark:bg-stone-900 ${
           isOpen ? "" : "right-auto left-0 rounded-l-none"
         }`}
         onClick={onToggle}
@@ -140,5 +148,6 @@ export function Sidebar({
         />
       </button>
     </aside>
+
   );
 }
