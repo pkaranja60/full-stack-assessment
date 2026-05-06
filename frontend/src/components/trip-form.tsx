@@ -13,10 +13,10 @@ interface TripFormProps {
 
 export function TripForm({ onStart, onSuccess }: TripFormProps) {
   const [formData, setFormData] = useState({
-    current_location: "Los Angeles, CA",
-    pickup_location: "Chicago, IL",
-    dropoff_location: "New York, NY",
-    current_cycle_used: 0,
+    current_location: "",
+    pickup_location: "",
+    dropoff_location: "",
+    current_cycle_used: "" as string | number,
   });
 
   const { mutate: planTrip, isPending, error } = usePlanTrip();
@@ -24,7 +24,16 @@ export function TripForm({ onStart, onSuccess }: TripFormProps) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     onStart?.();
-    planTrip(formData, {
+    const submissionData = {
+      ...formData,
+      current_cycle_used:
+        typeof formData.current_cycle_used === "string" &&
+        formData.current_cycle_used === ""
+          ? 0
+          : Number.parseFloat(formData.current_cycle_used.toString()),
+    };
+
+    planTrip(submissionData, {
       onSuccess: (data) => {
         onSuccess(data);
       },
@@ -68,10 +77,10 @@ export function TripForm({ onStart, onSuccess }: TripFormProps) {
           onChange={(e) =>
             setFormData({
               ...formData,
-              current_cycle_used: Number.parseFloat(e.target.value) || 0,
+              current_cycle_used: e.target.value,
             })
           }
-          required
+          placeholder="0.0"
           step="0.1"
           type="number"
           value={formData.current_cycle_used}
