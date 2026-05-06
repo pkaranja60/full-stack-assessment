@@ -1,5 +1,6 @@
 import { Loader2, Navigation } from "lucide-react";
 import type { FormEvent } from "react";
+import type { TripData } from "../types/trip";
 import { useState } from "react";
 import { usePlanTrip } from "../hooks/use-trips";
 import { Button } from "./ui/button";
@@ -7,7 +8,7 @@ import { Input } from "./ui/input";
 
 interface TripFormProps {
   onStart?: () => void;
-  onSuccess: (data: unknown) => void;
+  onSuccess: (data: TripData) => void;
 }
 
 export function TripForm({ onStart, onSuccess }: TripFormProps) {
