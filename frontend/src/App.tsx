@@ -67,10 +67,10 @@ function App() {
         tripData={tripData}
       />
 
-      {/* Mobile Toggle Button (only when sidebar is closed) */}
+      {/* Mobile/Tablet Toggle Button (only when sidebar is closed) */}
       {!isSidebarOpen && activeView === "planner" && (
         <button
-          className="fixed bottom-6 left-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-brand-primary/40 shadow-xl transition-all hover:scale-110 sm:hidden"
+          className="fixed bottom-6 left-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-brand-primary/40 shadow-xl transition-all hover:scale-110 lg:hidden"
           onClick={() => setIsSidebarOpen(true)}
           type="button"
         >
