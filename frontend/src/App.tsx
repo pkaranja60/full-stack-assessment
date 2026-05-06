@@ -1,3 +1,4 @@
+import { Navigation } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LogSheet } from "./components/log-sheet";
 import { Sidebar } from "./components/sidebar";
@@ -66,6 +67,17 @@ function App() {
         tripData={tripData}
       />
 
+      {/* Mobile Toggle Button (only when sidebar is closed) */}
+      {!isSidebarOpen && activeView === "planner" && (
+        <button
+          className="fixed bottom-6 left-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-brand-primary/40 shadow-xl transition-all hover:scale-110 sm:hidden"
+          onClick={() => setIsSidebarOpen(true)}
+          type="button"
+        >
+          <Navigation className="h-6 w-6" />
+        </button>
+      )}
+
       {/* Main Content Area */}
       <main className="relative flex h-full flex-1 flex-col">
         {activeView === "planner" ? (
@@ -74,21 +86,21 @@ function App() {
             stops={tripData?.stops}
           />
         ) : (
-          <div className="h-full overflow-y-auto bg-stone-50 p-8 dark:bg-stone-900">
+          <div className="h-full overflow-y-auto bg-stone-50 p-4 sm:p-8 dark:bg-stone-900">
             <div className="mx-auto max-w-5xl space-y-8">
-              <header className="flex items-center justify-between">
+              <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="font-bold text-3xl text-stone-900 dark:text-stone-100">
+                  <h2 className="font-bold text-2xl text-stone-900 sm:text-3xl dark:text-stone-100">
                     Trip Log Sheets
                   </h2>
-                  <p className="text-stone-500">
+                  <p className="text-stone-500 text-sm sm:text-base">
                     Review and verify your daily duty cycles
                   </p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                   {tripData?.trip_id && (
                     <a
-                      className="inline-flex items-center gap-2 rounded-full border-2 border-stone-200 bg-white px-6 py-2 font-bold text-stone-700 transition-transform hover:scale-105 dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-stone-200 bg-white px-6 py-2.5 font-bold text-stone-700 text-sm transition-transform hover:scale-105 dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300"
                       href={`${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/trip/${tripData.trip_id}/download-logs/`}
                       rel="noopener noreferrer"
                       target="_blank"
@@ -97,7 +109,7 @@ function App() {
                     </a>
                   )}
                   <button
-                    className="rounded-full bg-brand-primary px-6 py-2 font-bold text-white shadow-lg transition-transform hover:scale-105"
+                    className="rounded-full bg-brand-primary px-6 py-2.5 font-bold text-white shadow-lg transition-transform hover:scale-105"
                     onClick={() => setActiveView("planner")}
                     type="button"
                   >
@@ -105,6 +117,7 @@ function App() {
                   </button>
                 </div>
               </header>
+
 
               {tripData?.daily_logs ? (
                 <div className="grid grid-cols-1 gap-8">

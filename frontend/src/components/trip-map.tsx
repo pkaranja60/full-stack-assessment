@@ -79,6 +79,25 @@ interface MapProps {
   }[];
 }
 
+function ResizeListener() {
+  const map = useMap();
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+
+    const container = map.getContainer();
+    observer.observe(container);
+
+    return () => {
+      observer.unobserve(container);
+    };
+  }, [map]);
+
+  return null;
+}
+
 function ChangeView({
   center,
   zoom,
@@ -144,6 +163,7 @@ export function TripMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <ResizeListener />
 
         {polyline.length > 0 && (
           <PolylineAny
